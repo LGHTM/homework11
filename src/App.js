@@ -1,8 +1,9 @@
 import React from "react";
 import "./App.css";
 
-import { combineReducers, createStore } from "redux";
+import { combineReducers, createStore, applyMiddleware } from "redux";
 import { Provider, connect } from "react-redux";
+import thunk from "redux-thunk";
 
 const Actions = {
   ADD: "add",
@@ -69,6 +70,32 @@ function reducerCounters(state = initialState, action) {
   }
 }
 
+const loadCounters = async (dispatch, getState) => {
+  dispatch({
+    type: Actions.CHANGE_LOADING,
+    payload: {
+      isLoading: true,
+    },
+  });
+
+  const response = await fetch("/counters");
+  const counters = await response.json();
+
+  dispatch({
+    type: Actions.LOADED,
+    payload: {
+      counters,
+    },
+  });
+
+  dispatch({
+    type: Actions.CHANGE_LOADING,
+    payload: {
+      isLoading: false,
+    },
+  });
+};
+
 const LoadingActions = {
   CHANGE_LOADING: "Loading/CHANGE_ACTIONS",
 };
@@ -92,14 +119,7 @@ class Counter extends React.Component {
   };
 
   async componentDidMount() {
-    this.props.changeLoading(true);
-
-    const response = await fetch("/counters");
-    const counters = await response.json();
-
-    this.props.onLoaded(counters);
-
-    this.props.changeLoading(false);
+    this.props.loadCounters();
   }
 
   buttonDecrease = () => {};
@@ -170,16 +190,18 @@ const ConnectedCounter = connect(
       dispatch({ type: Actions.INCREASE, payload: { countId } }),
     onDecrease: (countId) =>
       dispatch({ type: Actions.DECREASE, payload: { countId } }),
-    onLoaded: (counters) =>
-      dispatch({ type: Actions.LOADED, payload: { counters } }),
-    changeLoading: (isLoading) =>
-      dispatch({ type: LoadingActions.CHANGE_LOADING, payload: { isLoading } }),
+    // onLoaded: (counters) =>
+    //   dispatch({ type: Actions.LOADED, payload: { counters } }),
+    // changeLoading: (isLoading) =>
+    //   dispatch({ type: LoadingActions.CHANGE_LOADING, payload: { isLoading } }),
+    loadCounters: () => dispatch(loadCounters),
   })
 )(Counter);
 
 const store = createStore(
   reducer,
-  window.__REDUX_DEVTOOLS_EXTENSION__ && window.__REDUX_DEVTOOLS_EXTENSION__()
+  applyMiddleware(thunk)
+  // window.__REDUX_DEVTOOLS_EXTENSION__ && window.__REDUX_DEVTOOLS_EXTENSION__(),
 );
 
 const Loader = ({ children, isLoading }) => (
